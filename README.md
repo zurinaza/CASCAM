@@ -1,4 +1,4 @@
-# CASCAM
+<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -310,9 +310,30 @@ tr.off td{opacity:.42}
 .ph .t1 .doc{display:block; font-weight:400; font-size:9.4px; margin-top:2px}
 .ph .t2{padding:8px; text-align:center; font-weight:700; font-size:11.5px}
 .ph .t2 i{display:block; font-weight:400}
-.pf{margin-top:14px; font-size:9px; font-family:var(--mono); color:#000; border-top:1px solid #000; padding-top:5px}
+.pf{margin-top:8px; font-size:8.4px; font-family:var(--mono); color:#000; border-top:1px solid #000; padding-top:3px; line-height:1.35}
 .pf span{display:inline-block; min-width:170px}
 .hl{background:#fff8a8}
+/* the CAM form: landscape, its own letterhead, one EAC and one CO per column */
+.cam{max-width:290mm}
+.camhead{text-align:center; font-size:9.6px; font-weight:700; line-height:1.34; padding-bottom:4px}
+.camhead .kod{display:block; font-weight:400; font-size:9.4px}
+.camhead .ttl{display:block; margin-top:6px; font-size:9.6px; font-weight:700}
+.camlogo{height:38px; width:auto; display:block; margin:0 0 4px}
+.cammeta{border-collapse:collapse; width:auto; margin-bottom:6px; font-size:9.4px}
+.cammeta td{border:0; padding:1px 10px 1px 0; white-space:nowrap; vertical-align:bottom}
+.cammeta .lab{font-weight:700}
+.camgrid{font-size:7.8px; table-layout:auto}
+.camgrid th,.camgrid td{padding:1px 3px; text-align:center; vertical-align:middle; line-height:1.15}
+.camgrid th{font-weight:700; background:none}
+.camgrid thead th{text-transform:uppercase}
+.camgrid .nm{text-align:left; white-space:normal; min-width:118px}
+.camgrid .lft{text-align:left}
+.camgrid .band{font-weight:700; font-size:8.6px}
+.camgrid .sum{font-weight:700; text-align:left; font-size:8px}
+.camsign{display:grid; grid-template-columns:1fr 1fr; gap:60px; margin-top:9px; font-size:9px;
+  break-inside:avoid; page-break-inside:avoid}
+.camsign .dots{margin-top:18px; border-bottom:1px dotted #000}
+.camsign .dt{margin-top:6px}
 .shade-b,.shade-o,.shade-g{color:#0c1d33}
 .shade-b{background:#dbe8f6} .shade-o{background:#f7e0cf} .shade-g{background:#d9ecd6}
 .cas-sec{display:flex; border:1px solid #000; border-bottom:0}
@@ -322,10 +343,12 @@ tr.off td{opacity:.42}
 .cas-sec > .ct{flex:1; padding:7px 9px; min-width:0}
 .cas-sec p{margin:0 0 5px}
 .cas-sec p:last-child{margin-bottom:0}
-.sign{display:grid; grid-template-columns:1fr 1fr; gap:40px; margin-top:26px; font-size:10px}
+.sign{display:grid; grid-template-columns:1fr 1fr; gap:40px; margin-top:26px; font-size:10px;
+  break-inside:avoid; page-break-inside:avoid}
 .sign .line{border-bottom:1px dotted #000; height:40px; margin-bottom:4px}
 .runner{border-collapse:collapse; width:100%; margin:0; font-size:inherit}
-.runner > thead > tr > th, .runner > tbody > tr > td{border:0; padding:0; background:none; white-space:normal}
+.runner > thead > tr > th, .runner > tbody > tr > td, .runner > tfoot > tr > td{border:0; padding:0; background:none; white-space:normal}
+.runner > tfoot{display:table-footer-group}
 .runner > thead > tr > th{font-weight:400; text-align:left; position:static}
 .runner > thead{display:table-header-group}
 .docbar{position:sticky; top:0; z-index:5; background:var(--ground); padding:10px 0 12px; margin-bottom:4px}
@@ -720,6 +743,14 @@ function validate(course, res) {
     if (!(a.eacs || []).length) add("err", `“${a.name}” is not assigned to an EAC.`, "Assessments");
   });
   if (!res.eacs.length) add("err", "No assessment has been assigned to an EAC yet.", "Assessments");
+  const split = A.filter(a => (a.eacs || []).length > 1 || (a.clos || []).length > 1);
+  if (split.length) {
+    const eacTotal = res.eacs.reduce((t, x) => t + x.o.fullMark, 0);
+    add("warn", `${split.map(a => "“" + a.name + "”").join(", ")} ${split.length > 1 ? "carry" : "carries"} more than one outcome, so ` +
+      `${split.length > 1 ? "their" : "its"} full marks count towards each. The EAC marks add to ${fmt(eacTotal, 0)} rather than ${fmt(res.fullTotal, 0)}. ` +
+      `The CAM form splits such an assessment into one column per outcome — enter “Test 1” twice with the marks divided between them.`,
+      "Assessments");
+  }
   res.outcomes.forEach(o => {
     if (!o.members.length) add("err", `${o.code} has no assessment assigned to it, so it cannot be measured.`, "Assessments");   // CLOs only; an EAC without an assessment is simply not carried
   });
@@ -1561,7 +1592,10 @@ function casDoc(c, res) {
     </table>`;
 
   return `<article class="paper" id="casPaper">
-    <table class="runner"><thead><tr><th>${paperHead(true)}</th></tr></thead><tbody><tr><td>
+    <table class="runner">
+      <thead><tr><th>${paperHead(true)}</th></tr></thead>
+      <tfoot><tr><td>${paperFoot(true)}</td></tr></tfoot>
+      <tbody><tr><td>
     ${meta}
     <div class="cas-sec"><div class="lt">A</div><div class="ct">
       <p>Attach Teaching Plan</p>${cas.teachingPlan ? `<p><i>${nl2br(cas.teachingPlan)}</i></p>` : ""}</div></div>
@@ -1606,70 +1640,109 @@ function casDoc(c, res) {
       <div><div>Approved by:</div><div>(Head of Department's signature &amp; stamp)</div>
         <div class="line"></div><div>Date: ____________________</div></div>
     </div>
-    ${paperFoot(true)}
     </td></tr></tbody></table>
     <div class="pagebreak" style="padding-top:2px">
-      <table class="runner"><thead><tr><th>${paperHead(true)}</th></tr></thead><tbody><tr><td>
-      ${eacDesc}${paperFoot(true)}</td></tr></tbody></table></div>
+      <table class="runner">
+        <thead><tr><th>${paperHead(true)}</th></tr></thead>
+        <tfoot><tr><td>${paperFoot(true)}</td></tr></tfoot>
+        <tbody><tr><td>${eacDesc}</td></tr></tbody>
+      </table></div>
   </article>`;
 }
 
 /* ---------------- the printable CAM sheet ---------------- */
+/* Follows BORANG MARKAH PENILAIAN KURSUS (PU/PS/FK/CAM): landscape, the letterhead
+   repeating on each page, one column per assessment labelled with the outcome it
+   measures, then the PO and CO attainment bands. */
+
+function camHead() {
+  return `<div class="camhead">PERKHIDMATAN UTAMA PRASISWAZAH<br>FAKULTI KEJURUTERAAN
+    <span class="kod">Kod Dokumen: PU/PS/FK/CAM</span>
+    <span class="ttl">BORANG MARKAH PENILAIAN KURSUS (COURSE ASSESSMENT MARKS)</span></div>`;
+}
+function camFoot() {
+  return `<div class="pf runfoot"><span>NO. SEMAKAN&nbsp;&nbsp;:&nbsp;&nbsp;02</span><br>
+    <span>NO. ISU&nbsp;&nbsp;:&nbsp;&nbsp;02</span><br>
+    <span>TARIKH KUATKUASA&nbsp;&nbsp;:&nbsp;&nbsp;25/02/2021</span></div>`;
+}
 
 function camDoc(c, res) {
   const A = c.assessments;
-  const os = res.outs.filter(x => x.o.fullMark > 0);
-  const marks = `<table>
-    <thead><tr><th class="n">No</th><th>Matric</th><th>Name</th>
-      ${A.map(a => `<th class="n">${esc(a.name)}<br><span style="font-weight:400">/${esc(a.fullMark)}</span></th>`).join("")}
-      <th class="n">Total</th><th class="n">%</th><th class="c">Grade</th>
-      ${os.map(x => `<th class="n">${esc(x.o.code)}</th>`).join("")}</tr></thead>
-    <tbody>${res.rows.map((r, i) => `<tr><td class="n">${i + 1}</td><td>${esc(r.s.matric || "")}</td>
-      <td>${esc(r.s.name || "")}</td>
-      ${A.map(a => `<td class="n">${r.s.marks?.[a.id] == null || r.s.marks[a.id] === "" ? "" : fmt(Number(r.s.marks[a.id]), 1)}</td>`).join("")}
-      <td class="n">${fmt(r.total, 1)}</td><td class="n">${fmt(r.totalPct, 1)}</td><td class="c">${esc(r.grade)}</td>
-      ${os.map(x => `<td class="n">${fmt(r.oPct[x.key], 1)}</td>`).join("")}</tr>`).join("")}</tbody>
-    <tfoot><tr><td colspan="3"><b>Y</b> — students reaching ${res.baseT}% of the marks</td>
-      ${res.cols.map(col => `<td class="n">${col.y}</td>`).join("")}
-      <td class="n">${res.overall.passY}</td><td class="n"></td><td></td>
-      ${os.map(x => `<td class="n">${x.y}</td>`).join("")}</tr>
-    <tr><td colspan="3"><b>Z</b> — attainment (%), Y / ${res.overall.n} × 100</td>
-      ${res.cols.map(col => `<td class="n">${fmt(col.z, 1)}</td>`).join("")}
-      <td class="n">${fmt(res.overall.passZ, 1)}</td><td class="n"></td><td></td>
-      ${os.map(x => `<td class="n">${fmt(x.z, 1)}</td>`).join("")}</tr>
-    <tr><td colspan="3">Attained (Z ≥ the minimum)</td>
-      ${res.cols.map(() => `<td></td>`).join("")}<td></td><td></td><td></td>
-      ${os.map(x => `<td class="c" style="font-weight:700">${x.verdict ? "Y" : "N"}</td>`).join("")}</tr>
-    </tfoot></table>`;
+  const eacs = res.outs.filter(x => x.o.kind === "EAC" && x.o.fullMark > 0);
+  const clos = res.outs.filter(x => x.o.kind === "CLO" && x.o.fullMark > 0);
+  const outs = [...eacs, ...clos];
+  const nA = A.length, nE = eacs.length, nC = clos.length;
+  const codes = a => (a.eacs || []).map(id => (c.eacs.find(e => e.id === id) || {}).code || id).join(" / ");
+  const mins = [...new Set(outs.map(x => x.o.tgt))];
+  const oneMin = mins.length === 1 ? mins[0] : null;
 
-  return `<article class="paper" id="camPaper">
-    <table class="runner"><thead><tr><th>${paperHead(true)}</th></tr></thead><tbody><tr><td>
-    <h3 style="text-align:center;font-size:12px;margin-bottom:8px">COURSE ASSESSMENT MATRIX (CAM)</h3>
-    <table>
-      <tr><td style="width:110px">Semester/Session:</td><td>${esc(c.semester)}</td>
-          <td style="width:90px">Course Code:</td><td>${esc(c.courseCode)}</td></tr>
-      <tr><td>Course Name:</td><td>${esc(c.courseName)}</td><td>Lecturer:</td><td>${esc(c.lecturer)}</td></tr>
-      <tr><td>Group:</td><td>${esc(c.group)}</td><td>No. of students:</td><td>${res.overall.n}</td></tr>
+  const meta = `<table class="cammeta">
+    <tr><td class="lab">SEMESTER</td><td>${esc(c.semester)}</td><td></td><td></td></tr>
+    <tr><td class="lab">COURSE NAME</td><td>${esc(c.courseName)}</td>
+        <td class="lab">LECTURER</td><td>${esc(c.lecturer)}</td></tr>
+    <tr><td class="lab">COURSE CODE</td><td>${esc(c.courseCode)}</td>
+        <td class="lab">NO. OF STUDENTS</td><td><span class="hl" style="padding:0 14px">${res.overall.n}</span></td></tr>
+    <tr><td class="lab">GROUP</td><td>${esc(c.group)}</td><td></td><td></td></tr>
+  </table>`;
+
+  const blanks = k => Array.from({ length: k }, () => "<td></td>").join("");
+
+  const grid = `<table class="camgrid">
+    <thead>
+      <tr><th colspan="3"></th>${nA ? `<th colspan="${nA}"></th>` : ""}<th></th><th></th>
+        ${nE ? `<th colspan="${nE}" class="band">PO Attainment (%)</th>` : ""}
+        ${nC ? `<th colspan="${nC}" class="band">CO Attainment (%)</th>` : ""}</tr>
+      <tr><th colspan="3"></th>
+        ${A.map(a => `<th>${esc(a.name)}<br>${codes(a) ? esc(codes(a)) : "<span style='color:#b00'>no EAC</span>"}</th>`).join("")}
+        <th>TOTAL</th><th>GRED</th>
+        ${outs.map(x => `<th>${esc(x.o.code)}</th>`).join("")}</tr>
+      <tr><th colspan="3" class="lft hl">FULL MARKS FOR EACH ASSESSMENT</th>
+        ${A.map(a => `<th class="hl">${fmt(a.fullMark, 0)}</th>`).join("")}
+        <th class="hl">${fmt(res.fullTotal, 0)}</th><th></th>
+        ${outs.map(x => `<th>${fmt(x.o.fullMark, 0)}</th>`).join("")}</tr>
+      <tr><th class="lft">No</th><th class="lft">MATRIC</th><th class="lft">NAME</th>
+        ${blanks(nA + 2 + outs.length)}</tr>
+    </thead>
+    <tbody>${res.rows.map((r, i) => `<tr>
+      <td>${i + 1}</td><td class="lft">${esc(r.s.matric || "")}</td><td class="nm">${esc(r.s.name || "")}</td>
+      ${A.map(a => `<td>${r.s.marks?.[a.id] == null || r.s.marks[a.id] === "" ? "" : fmt(Number(r.s.marks[a.id]), 1)}</td>`).join("")}
+      <td>${fmt(r.total, 1)}</td><td>${esc(r.grade)}</td>
+      ${outs.map(x => `<td>${fmt(r.oPct[x.key], 0)}</td>`).join("")}</tr>`).join("")}
+      <tr><td colspan="3" class="sum hl">Y : NUMBER OF STUDENTS OBTAINING &gt;=${res.baseT}%</td>
+        ${res.cols.map(col => `<td>${col.y}</td>`).join("")}
+        <td>${res.overall.passY}</td><td></td>
+        ${outs.map(x => `<td>${x.y}</td>`).join("")}</tr>
+      <tr><td colspan="3" class="sum hl">Z: PERCENTAGE OF ATTAINMENT (%) , Y/TOTAL STUDENTS X 100</td>
+        ${res.cols.map(col => `<td>${fmt(col.z)}</td>`).join("")}
+        <td>${fmt(res.overall.passZ)}</td><td></td>
+        ${outs.map(x => `<td>${fmt(x.z)}</td>`).join("")}</tr>
+      <tr><td colspan="3" class="sum hl">${oneMin == null ? "YES: IF Z &gt;= the required minimum" : "YES: IF  Z &gt;=" + oneMin + "% "}</td>
+        ${blanks(nA + 2)}
+        ${outs.map(x => `<td style="font-weight:700">${x.verdict ? "Y" : "N"}</td>`).join("")}</tr>
+      ${oneMin == null ? `<tr><td colspan="3" class="sum">Minimum attainment required (%)</td>
+        ${blanks(nA + 2)}
+        ${outs.map(x => `<td>${x.o.tgt}</td>`).join("")}</tr>` : ""}
+    </tbody>
+  </table>`;
+
+  const sign = `<div class="camsign">
+    <div><div>Prepared by:</div><div>(Lecturer&rsquo;s signature &amp; stamp)</div>
+      <div class="dots"></div><div class="dt">Date: ____________________</div></div>
+    <div><div>Approved by:</div><div>(Head of Department&rsquo;s signature &amp; stamp)</div>
+      <div class="dots"></div><div class="dt">Date: ____________________</div></div>
+  </div>`;
+
+  return `<article class="paper cam" id="camPaper">
+    <table class="runner">
+      <thead><tr><th>${camHead()}</th></tr></thead>
+      <tfoot><tr><td>${camFoot()}</td></tr></tfoot>
+      <tbody><tr><td>
+        <img class="camlogo" src="${CREST}" alt="Universiti Putra Malaysia">
+        ${meta}
+        ${grid}
+        ${sign}
+      </td></tr></tbody>
     </table>
-    <table>
-      <thead><tr><th>Outcome</th><th>Measured by</th><th class="n">Marks</th>
-        <th class="n">Y</th><th class="n">Z (%)</th><th class="n">Minimum</th><th class="c">Attained</th></tr></thead>
-      <tbody>${os.map(x => `<tr><td><b>${esc(x.o.code)}</b></td>
-        <td>${x.o.members.map(m => esc(m.name)).join(", ")}</td>
-        <td class="n">${fmt(x.o.fullMark, 0)}</td><td class="n">${x.y}</td>
-        <td class="n"><b>${fmt(x.z)}</b></td><td class="n">${x.o.tgt}</td>
-        <td class="c" style="font-weight:700">${x.verdict ? "Y" : "N"}</td></tr>`).join("")}</tbody>
-    </table>
-    <h3 style="margin-top:10px">Marks and individual attainment</h3>
-    ${marks}
-    <div class="sign">
-      <div><div>Prepared by:</div><div>(Lecturer's signature &amp; stamp)</div>
-        <div class="line"></div><div>Date: ____________________</div></div>
-      <div><div>Approved by:</div><div>(Head of Department's signature &amp; stamp)</div>
-        <div class="line"></div><div>Date: ____________________</div></div>
-    </div>
-    ${paperFoot(true)}
-    </td></tr></tbody></table>
   </article>`;
 }
 
@@ -1678,6 +1751,8 @@ function camDoc(c, res) {
 function viewPrint(c, res) {
   const errs = validate(c, res).filter(i => i.level === "err");
   const which = S.doc === "cam" ? camDoc(c, res) : casDoc(c, res);
+  const page = `<style>@media print{ @page{ size:A4 ${S.doc === "cam" ? "landscape" : "portrait"};
+    margin:${S.doc === "cam" ? "7mm 6mm" : "11mm"} } }</style>`;
   return `
   ${errs.length ? `<section class="panel noprint" style="border-color:var(--no)">
     <header style="background:var(--no-bg)"><h2 style="color:var(--no)">Fix before signing</h2></header>
@@ -1692,10 +1767,10 @@ function viewPrint(c, res) {
       <button class="btn sec" id="printBtn">Print</button>
       <button class="btn sec" id="dlDoc">Download (.html)</button>
       <span class="spacer"></span>
-      <span style="font-size:12px;color:var(--ink-3)">A4 · ${new Date().toLocaleDateString()}</span>
+      <span style="font-size:12px;color:var(--ink-3)">A4 ${S.doc === "cam" ? "landscape" : "portrait"} · ${new Date().toLocaleDateString()}</span>
     </div>
   </div>
-  ${which}`;
+  ${page}${which}`;
 }
 
 /* ============================================================
